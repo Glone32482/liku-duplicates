@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Дублі товарів Lik.u</title>
+<style>
+@font-face{font-family:Commissioner;font-style:normal;font-weight:400 800;font-display:swap;src:url(fonts/commissioner-cyrillic.woff2) format("woff2");unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:Commissioner;font-style:normal;font-weight:400 800;font-display:swap;src:url(fonts/commissioner-latin.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+*{box-sizing:border-box;margin:0;padding:0}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid #0f7b5f;outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.s-none{--c:#b7c4c0}.s-orig{--c:#15803d}.s-dup{--c:#c0262d}.s-err{--c:#b54708}.s-vend{--c:#6941c6}.s-no{--c:#475467}
+
+body{font:14px/1.45 Commissioner,system-ui,sans-serif;background:#f3f6f5;color:#1b2b28;min-height:100vh}
+header{display:flex;align-items:center;gap:16px;padding:14px 40px;border-bottom:1px solid #d5dfdb;background:#fff;flex-wrap:wrap}
+.brand{font-weight:800;font-size:17px;letter-spacing:-.01em}
+.brand span{color:#0f7b5f}
+.prog{flex:1;display:flex;align-items:center;gap:12px;color:#4d625d;font-size:13px;min-width:260px}
+.bar{flex:1;max-width:300px;height:6px;background:#e1e9e6;border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:#0f7b5f}
+.saved{font-size:12px;color:#6b7f7a;white-space:nowrap}
+.btn{border:1px solid #0f7b5f;background:#0f7b5f;color:#fff;padding:8px 14px;border-radius:8px;font-weight:600;white-space:nowrap}
+.btn.ghost{background:#fff;color:#0f7b5f}
+.btn.quiet{border-color:#d5dfdb;background:#fff;color:#1b2b28;font-weight:500}
+.btn:disabled{opacity:.45;cursor:default}
+details.menu{position:relative}
+details.menu summary{list-style:none}
+details.menu summary::-webkit-details-marker{display:none}
+details.menu .pop{position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid #d5dfdb;border-radius:10px;box-shadow:0 10px 30px rgba(27,43,40,.15);padding:6px;z-index:30;min-width:240px;display:grid}
+details.menu .pop button{border:0;background:none;text-align:left;padding:8px 10px;border-radius:6px}
+details.menu .pop button:hover{background:#f0f5f3}
+.warnbar{background:#fdf0d5;color:#6b4500;padding:10px 40px;font-size:13px;border-bottom:1px solid #f0d9a6}
+.infobar{background:#e3f2ec;color:#0b5c47;padding:10px 40px;font-size:13px;border-bottom:1px solid #c7e6d9}
+
+/* Завантаження */
+.start{max-width:640px;margin:12vh auto;padding:0 24px}
+.start h1{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.15;margin-bottom:12px}
+.start p{color:#4d625d;margin-bottom:24px;max-width:60ch}
+.drop{display:block;border:2px dashed #b9cbc4;border-radius:16px;background:#fff;padding:40px;text-align:center;cursor:pointer}
+.drop.over{border-color:#0f7b5f;background:#eef8f3}
+.drop b{display:block;font-size:16px;margin-bottom:4px}
+.drop span{color:#6b7f7a;font-size:13px}
+.start .status{margin-top:16px;min-height:22px;color:#4d625d}
+.start .status.error{color:#b42318;font-weight:600}
+
+/* Вкладки */
+.tabs{display:flex;padding:0 40px;background:#fff;border-bottom:1px solid #d5dfdb;overflow-x:auto}
+.tab{border:0;background:none;padding:12px 20px 10px;border-bottom:3px solid transparent;text-align:left;display:grid;gap:2px;min-width:150px;white-space:nowrap}
+.tab b{font-size:14px;font-weight:600}
+.tab small{font-size:12px;color:#6b7f7a}
+.tab small em{font-style:normal;color:#b42318;font-weight:600}
+.tab .mini{height:3px;background:#e1e9e6;border-radius:2px;overflow:hidden;margin-top:6px}
+.tab .mini i{display:block;height:100%;background:#0f7b5f}
+.tab[aria-selected=true]{border-bottom-color:#0f7b5f}
+.tab[aria-selected=true] b{color:#0f7b5f}
+.tab:hover{background:#f7faf9}
+
+.layout{display:flex;align-items:flex-start}
+.list{width:320px;flex:none;background:#fff;border-right:1px solid #d5dfdb;max-height:calc(100vh - 130px);overflow:auto;position:sticky;top:0}
+.list button{display:grid;grid-template-columns:34px 1fr auto;gap:2px 8px;width:100%;text-align:left;border:0;border-bottom:1px solid #eef2f0;background:none;padding:9px 14px;font-size:13px}
+.list button[aria-current=true]{background:#e3f2ec;box-shadow:inset 3px 0 #0f7b5f}
+.list button .n{color:#6b7f7a}
+.list button .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list button .l{font-size:12px;letter-spacing:.04em}
+.list .more{padding:10px 14px;color:#6b7f7a;font-size:12px}
+
+main{flex:1;max-width:1280px;margin:0 auto;padding:22px 40px 60px;min-width:0}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.toolbar input[type=search]{flex:1;min-width:220px;max-width:380px;border:1px solid #d5dfdb;border-radius:8px;padding:8px 10px;background:#fff}
+.chips{display:flex;gap:4px}
+.chips button{border:1px solid #d5dfdb;background:#fff;border-radius:20px;padding:6px 12px;font-size:13px}
+.chips button span{color:#6b7f7a;margin-left:4px}
+.chips button[aria-pressed=true]{background:#1b2b28;border-color:#1b2b28;color:#fff}
+.chips button[aria-pressed=true] span{color:#cfdcd8}
+.toolbar .sp{flex:1}
+
+.gmeta{display:flex;align-items:center;gap:10px;color:#4d625d;font-size:13px;margin-bottom:6px;flex-wrap:wrap}
+.gmeta .val{background:#dff3ea;color:#0b5c47;font-weight:600;padding:2px 8px;border-radius:4px}
+h1.title{font-size:30px;line-height:1.15;font-weight:800;letter-spacing:-.02em;max-width:34ch;margin-bottom:14px}
+.hint{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:#fff;border:1px dashed #9fbfb4;border-radius:10px;padding:10px 14px;margin-bottom:18px;font-size:13px}
+.hint b{color:#0b5c47}
+.hint .txt{flex:1 1 360px}
+.hint .acts{display:flex;gap:8px;flex-wrap:wrap}
+.problems{background:#fdecea;border:1px solid #f4c4bd;color:#7a1d14;border-radius:10px;padding:10px 14px;margin-bottom:18px;font-size:13px}
+.problems li{margin-left:18px}
+
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:18px}
+.card{background:#fff;border:1px solid #d5dfdb;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px;border-top:5px solid var(--c);cursor:default}
+.card.active{box-shadow:0 0 0 2px #1b2b28}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.adm-row{margin:6px 0 2px}
+.adm{color:#0f7b5f;font-weight:600;text-decoration:none;border-bottom:1px solid currentColor}
+.adm:hover{border-bottom-width:2px}.adm:focus-visible{outline:2px solid #0f7b5f;outline-offset:2px}
+.adm.seen{color:#6b6b6b}.adm.seen::after{content:" · відкрито";font-weight:400}
+.id{font-weight:600}
+.stock{font-size:12px;padding:3px 8px;border-radius:20px;background:#e3f2ec;color:#0f7b5f;font-weight:600;white-space:nowrap}
+.stock.out{background:#fdf0d5;color:#8a5a00}
+dl{display:grid;grid-template-columns:118px 1fr;gap:5px 10px;font-size:13px}
+dt{color:#6b7f7a}
+dt.key{color:#0b5c47;font-weight:600}
+dd{word-break:break-word;padding-left:6px;border-left:2px solid transparent}
+dd.diff{border-left-color:#e0a63a;background:#fff8ea}
+dd.hit{background:#dff3ea;border-left-color:#0f7b5f;font-weight:600}
+dd.empty{color:#a9b8b4}
+.also{font-size:12px;color:#4d625d}
+.also button{border:0;background:#eef3f1;border-radius:4px;padding:1px 6px;font-size:12px;margin-left:4px;color:#0b5c47}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:auto}
+.seg button{border:1px solid #d5dfdb;background:#fff;border-radius:8px;padding:7px 8px;font-size:13px;text-align:left;display:flex;gap:6px;align-items:center}
+.seg button kbd{font:500 11px Commissioner,sans-serif;color:#5d706b;margin-left:auto}
+.seg button.sug{border:2px dashed var(--c);padding:6px 7px}
+.seg button[aria-pressed=true]{border:1px solid var(--c);background:var(--c);color:#fff;padding:7px 8px}
+.seg button[aria-pressed=true] kbd{color:#fff}
+.seg .reset{grid-column:2;border:0;background:none;color:#5d706b;font-size:12px;justify-content:flex-end}
+.fix label{font-size:12px;color:#8a5a00;display:block;margin-bottom:4px}
+.fix input{width:100%;border:1px solid #e3c27a;border-radius:8px;padding:8px;background:#fffaf0}
+
+/* Велика група: таблиця */
+.wide{background:#fff;border:1px solid #d5dfdb;border-radius:14px;overflow:auto}
+.wide table{border-collapse:collapse;width:100%;min-width:1000px;font-size:13px}
+.wide th:last-child,.wide td:last-child{position:sticky;right:0;background:#fff;box-shadow:-1px 0 #d5dfdb}
+.wide th:last-child{background:#f3f6f5}
+.wide td{max-width:280px}
+.wide th{background:#f3f6f5;text-align:left;font-weight:600;padding:8px;border-bottom:1px solid #d5dfdb;white-space:nowrap}
+.wide td{padding:8px;border-bottom:1px solid #eef2f0;vertical-align:top}
+.wide tr{border-left:4px solid var(--c)}
+.wide tr.active td:first-child{box-shadow:inset 3px 0 #1b2b28}
+.wide tr.active td:last-child{background:#f0f5f3}
+.wide td.hit{background:#dff3ea;font-weight:600}
+.wide td.diff{background:#fff8ea}
+.wide .mini-seg{display:flex;gap:3px}
+.wide .mini-seg button{width:30px;height:28px;border:1px solid #d5dfdb;border-radius:6px;background:#fff;font-weight:600}
+.wide .mini-seg button.sug{border:2px dashed var(--c)}
+.wide .mini-seg button[aria-pressed=true]{background:var(--c);border-color:var(--c);color:#fff}
+.wide input{width:100%;min-width:200px;border:1px solid #e3c27a;border-radius:6px;padding:5px;margin-top:4px}
+
+.comment{margin-top:18px}
+.comment label{display:block;font-size:12px;color:#6b7f7a;margin-bottom:4px}
+.comment textarea{width:100%;min-height:52px;border:1px solid #d5dfdb;border-radius:10px;padding:8px 10px;background:#fff;resize:vertical}
+.nav{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:24px;color:#4d625d;font-size:12px;position:sticky;bottom:0;z-index:5;background:#f3f6f5;padding:12px 0 14px;border-top:1px solid #d5dfdc;box-shadow:0 -8px 14px -10px rgba(27,43,40,.25)}
+.nav .keys{text-align:center;max-width:62ch}
+.empty-tab{background:#fff;border:1px dashed #c5d3ce;border-radius:14px;padding:40px;text-align:center;color:#4d625d}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1b2b28;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:50;display:flex;gap:12px;align-items:center}
+.toast button{border:0;background:none;color:#9fe0c6;font-weight:600}
+@media (max-width:900px){header,.tabs,main,.warnbar,.infobar{padding-left:16px;padding-right:16px}.list{display:none}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<input type="file" id="file" accept=".xlsx,.xls" hidden>
+<input type="file" id="progressFile" accept=".json" hidden>
+<script src="vendor/xlsx.full.min.js"></script>
+<script type="module">
+/* === check:start ===
+   Правила пошуку дублів і підказок. Еталон — tool/dupes/rules.py, збіг перевіряє tool/tests/parity.mjs.
+   Правила: .wiki/decisions/groups-per-key.md і .wiki/decisions/rules.md. */
+export const KEYS = ["name", "dwh", "bc", "mor", "opt", "badm"];
+const NAME_KEYS = new Set(["name", "dwh"]);
+const SKIP_STATUS = "Архив";
+const UNKNOWN_MAKER = "производитель до уточнения";
+const HOMOGLYPHS = { a: "а", b: "в", c: "с", e: "е", h: "н", i: "і", k: "к", m: "м", o: "о", p: "р", t: "т", x: "х", y: "у" };
+const text = v => (v == null ? "" : String(v));
+
+export function normName(value) {
+  let s = text(value).toLowerCase().replaceAll("ё", "е");
+  s = s.replace(/[а-яёіїєґa-z]+/g, w =>
+    /[а-яёіїєґ]/.test(w) && /[a-z]/.test(w) ? w.replace(/[abcehikmoptxy]/g, c => HOMOGLYPHS[c]) : w);
+  s = s.replace(/[()\[\]"'«»“”.,;:/\\&*_]|-(?!\d)/g, " ").replaceAll("№", " ");
+  return s.split(/\s+/).filter(t => t && t !== "шт").join(" ");
+}
+
+export function normBarcode(code) {
+  const m = /^(\d{8,14})\.\d+$/.exec(code);
+  if (m) code = m[1];
+  if (code.length === 12 && /^\d+$/.test(code)) code = "0" + code;
+  return code;
+}
+
+const splitCodes = v => text(v).split(",").map(c => c.trim()).filter(Boolean);
+
+export function keyValues(record, key) {
+  let out;
+  if (NAME_KEYS.has(key)) { const v = normName(record[key]); out = v ? [v] : []; }
+  else if (key === "bc") out = splitCodes(record[key]).map(normBarcode);
+  else out = splitCodes(record[key]);
+  return [...new Set(out)];
+}
+
+export function pharmacies(record) {
+  const n = Number(record.ph);
+  return Number.isFinite(n) ? Math.trunc(n) : 0;
+}
+
+export function buildGroups(records, key) {
+  const parent = new Map();
+  const find = x => {
+    if (!parent.has(x)) parent.set(x, x);
+    while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); }
+    return x;
+  };
+  const byId = new Map();
+  for (const r of records) {
+    if (r.st === SKIP_STATUS) continue;
+    const values = keyValues(r, key);
+    if (!values.length) continue;
+    byId.set(r.id, r);
+    for (const v of values) parent.set(find("v\u0000" + v), find("i\u0000" + r.id));
+  }
+  const buckets = new Map();
+  for (const id of byId.keys()) {
+    const root = find("i\u0000" + id);
+    if (!buckets.has(root)) buckets.set(root, []);
+    buckets.get(root).push(id);
+  }
+  const groups = [];
+  for (const ids of buckets.values()) {
+    if (ids.length < 2) continue;
+    const items = [...ids].sort((a, b) => a - b);
+    if (items.every(i => pharmacies(byId.get(i)) > 0)) continue;
+    const counts = new Map();
+    for (const i of items) for (const v of keyValues(byId.get(i), key)) counts.set(v, (counts.get(v) || 0) + 1);
+    const shared = [...counts].filter(([, n]) => n > 1).map(([v]) => v);
+    groups.push({ gid: `${key}:${items[0]}`, key, items, shared });
+  }
+  groups.sort((a, b) => a.items[0] - b.items[0]);
+  return groups;
+}
+
+const maker = r => { const m = text(r.mfr).trim().toLowerCase(); return m === UNKNOWN_MAKER ? "" : m; };
+
+// Порядок вибору «Оригінал»: спершу правила ТЗ (більша кратність, заповнене дозування), далі
+// заповнена «Назва DWH», більше аптек, статус «Витрина», створений раніше, менший ID.
+export function rank(r) {
+  return [-(Number(r.mult) || 0), text(r.dose).trim() ? 0 : 1, text(r.dwh).trim() ? 0 : 1,
+    -pharmacies(r), r.st === "Витрина" ? 0 : 1, text(r.date), r.id];
+}
+export function compareRank(a, b) {
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1;
+  return 0;
+}
+
+export function suggest(group, byId) {
+  const items = group.items.map(i => byId.get(i));
+  const makers = new Set(items.map(maker).filter(Boolean));
+  if (NAME_KEYS.has(group.key) && makers.size > 1) return new Map(items.map(r => [r.id, ["vend", "maker"]]));
+  let best = items[0];
+  for (const r of items) if (compareRank(rank(r), rank(best)) < 0) best = r;
+  return new Map(items.map(r => [r.id, r === best ? ["orig", "best"] : ["dup", "dup"]]));
+}
+
+export function analyse(records) {
+  const byId = new Map(records.map(r => [r.id, r]));
+  const out = [];
+  for (const key of KEYS) for (const g of buildGroups(records, key)) {
+    const s = suggest(g, byId);
+    out.push({ ...g, suggest: Object.fromEntries([...s].map(([id, v]) => [String(id), v])) });
+  }
+  return out;
+}
+/* === check:end === */
+
+/* ---------- Дані й налаштування ---------- */
+const FIELDS = { "ID эталонного товара": "id", "Название товара": "name", "Название товара DWH": "dwh",
+  "Статус": "st", "Аптек": "ph", "Производитель": "mfr", "Кратность": "mult", "Дозировка": "dose",
+  "Штрих-код": "bc", "Коды Морион": "mor", "Коды Оптима": "opt", "Коды БАДМ": "badm", "Дата создания": "date" };
+const KEY_COL = { name: "Название товара", dwh: "Название товара DWH", bc: "Штрих-код", mor: "Коды Морион", opt: "Коды Оптима", badm: "Коды БАДМ" };
+const KN = { name: "Назва товару", dwh: "Назва DWH", bc: "Штрих-код", mor: "Коди Моріон", opt: "Коди Оптима", badm: "Коди БАДМ" };
+const VIEW = [["Название товара", "Назва товару"], ["Название товара DWH", "Назва DWH"], ["Производитель", "Виробник"],
+  ["Страна", "Країна"], ["Бренд", "Бренд"], ["Форма выпуска", "Форма випуску"], ["Первичная упаковка", "Первинна упаковка"],
+  ["Кратность", "В упаковці"], ["В блистере", "В блістері"], ["Количество в упаковке", "Кількість в упаковці"],
+  ["Дозировка", "Дозування"], ["Штрих-код", "Штрих-код"], ["Коды Морион", "Коди Моріон"], ["Коды Оптима", "Коди Оптима"],
+  ["Коды БАДМ", "Коди БАДМ"], ["Статус", "Статус DWH"], ["Дата создания", "Дата створення"]];
+const VIEW_MORE = [["Полное название", "Повна назва"], ["Серия бренда", "Серія"], ["АТХ код", "Код АТХ"], ["МНН", "МНН"],
+  ["МНН (англ)", "МНН (англ)"], ["Главный код Мориона", "Головний код Моріон"], ["Инструкция", "Інструкція"], ["Категория", "Категорія"]];
+const ST = [["orig", "Оригінал", "О"], ["dup", "Дубль", "Д"], ["err", "Помилка оцифрування", "П"], ["vend", "Vendor", "V"], ["no", "Не дубль", "Н"]];
+const STN = Object.fromEntries(ST.map(([k, n]) => [k, n]));
+const STL = Object.fromEntries(ST.map(([k, , l]) => [k, l]));
+const RANK_WHY = ["більша кратність", "заповнене дозування", "заповнена назва DWH", "більше аптек", "статус «Витрина»", "створений раніше", "менший ID"];
+const URL_P = id => `https://apis-data.com/products/product/${id}`;
+const opened = new Set();  // картки, відкриті в адмінці за цей сеанс
+const admLink = (id, text) => `<a class="adm ${opened.has(id) ? "seen" : ""}" data-adm="${id}" href="${URL_P(id)}" target="_blank" rel="noopener" title="Відкриється в новій вкладці. Cmd/Ctrl + клік — у фоні, без переходу">${text}</a>`;
+const STORE = "liku-dupes:v1";
+// Перенос рішень зі старого ключа сховища цього ж інструмента.
+if (!localStorage.getItem(STORE)) { const old = Object.keys(localStorage).find(k => k !== STORE && k.endsWith("-dupes:v1")); if (old) { localStorage.setItem(STORE, localStorage.getItem(old)); localStorage.removeItem(old); } }
+
+const S = { header: [], col: {}, raw: new Map(), rec: new Map(), groups: [], byGid: new Map(), byKey: {}, inGroups: new Map(),
+  fileName: "", tab: "name", cur: {}, filter: "all", q: "", cursor: 0, more: false, list: true, warn: "", info: "" };
+let D = { decisions: {}, fixes: {}, comments: {} };
+const undo = [];
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const $ = s => document.querySelector(s);
+const cellv = v => (typeof v === "string" ? (v.trim() || null) : v ?? null);
+const raw = (id, column) => { const i = S.col[column]; return i == null ? null : cellv(S.raw.get(id)[i]); };
+const fmtPh = n => n > 0 ? `${n.toLocaleString("uk")} ${n % 10 === 1 && n % 100 !== 11 ? "аптека" : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? "аптеки" : "аптек"}` : "Немає в наявності";
+const plural = (n, one, few, many) => n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? few : many;
+
+/* ---------- Збереження ---------- */
+function loadStore() {
+  try { const v = JSON.parse(localStorage.getItem(STORE)); if (v && v.decisions) D = { decisions: v.decisions, fixes: v.fixes || {}, comments: v.comments || {} }; }
+  catch { /* порожнє сховище */ }
+}
+let saveTimer;
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    localStorage.setItem(STORE, JSON.stringify({ ...D, tab: S.tab, cur: S.cur }));
+    const el = $("#saved"); if (el) el.textContent = "Збережено о " + new Date().toLocaleTimeString("uk", { hour: "2-digit", minute: "2-digit" });
+  }, 250);
+}
+
+/* ---------- Рішення ---------- */
+const dkey = (g, id) => `${g.key}|${id}`;
+const dec = (g, id) => D.decisions[dkey(g, id)] || "none";
+function change(kind, k, value) {
+  const box = D[kind], prev = box[k];
+  if ((prev ?? "") === (value ?? "")) return;
+  undo.push({ kind, k, prev });
+  if (undo.length > 500) undo.shift();
+  if (value == null || value === "") delete box[k]; else box[k] = value;
+  save();
+}
+function setDecision(g, id, s) { change("decisions", dkey(g, id), s === "none" ? null : s); }
+function undoLast() {
+  const u = undo.pop(); if (!u) return toast("Нема що скасовувати");
+  if (u.prev == null) delete D[u.kind][u.k]; else D[u.kind][u.k] = u.prev;
+  save(); render(); toast("Скасовано");
+}
+
+const gDone = g => g.items.every(id => dec(g, id) !== "none");
+function problems(g) {
+  const st = g.items.map(id => dec(g, id)), out = [];
+  const nO = st.filter(s => s === "orig").length, nD = st.filter(s => s === "dup").length;
+  if (nD && nO === 0) out.push("Є «Дубль», але немає «Оригінал».");
+  if (nO > 1) out.push("У групі має бути лише один «Оригінал».");
+  if (nO && !nD) out.push("«Оригінал» ставиться лише разом з «Дубль». Якщо дублів немає, поставте «Не дубль».");
+  for (const id of g.items) {
+    const s = dec(g, id);
+    const fixed = (D.fixes[id] || "").trim();
+    if (s === "err" && (!fixed || fixed === (S.rec.get(id).dwh || ""))) out.push(`ID ${id}: впишіть правильну назву DWH, зараз вона не змінена.`);
+    if (s === "orig" || s === "dup") for (const k of KEYS) {
+      if (k === g.key) continue;
+      const o = D.decisions[`${k}|${id}`];
+      if ((o === "orig" || o === "dup") && o !== s) out.push(`ID ${id}: у вкладці «${KN[k]}» цей товар позначено «${STN[o]}».`);
+    }
+  }
+  return out;
+}
+function gState(g) {
+  if (problems(g).length) return "problem";
+  return gDone(g) ? "done" : "todo";
+}
+
+/* ---------- Завантаження вигрузки ---------- */
+const REQUIRED = Object.keys(FIELDS);
+async function readFile(file) {
+  const status = $("#status");
+  const say = (t, err) => { status.textContent = t; status.className = "status" + (err ? " error" : ""); };
+  say("Читаю файл. Для 130 тисяч рядків це до півхвилини…");
+  await new Promise(r => setTimeout(r, 30));
+  let rows;
+  try {
+    const book = XLSX.read(await file.arrayBuffer(), { type: "array", dense: true });
+    rows = XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]], { header: 1, raw: true, defval: null });
+  } catch (e) { return say(`Не вдалося прочитати ${file.name}: ${e.message}`, true); }
+  const header = (rows[0] || []).map(c => String(c ?? "").trim());
+  const missing = REQUIRED.filter(c => !header.includes(c));
+  if (missing.length) return say(`У файлі немає стовпців: ${missing.join(", ")}. Потрібна вигрузка всіх товарів DWH.`, true);
+  say("Шукаю дублі…");
+  await new Promise(r => setTimeout(r, 30));
+  const col = Object.fromEntries(header.map((h, i) => [h, i]));
+  const body = rows.slice(1).filter(r => r.some(c => c !== null && c !== ""));
+  const records = body.map(r => { const o = {}; for (const [c, k] of Object.entries(FIELDS)) o[k] = cellv(r[col[c]]); return o; });
+  const groups = analyse(records);
+  const need = new Set(groups.flatMap(g => g.items));
+  S.header = header; S.col = col; S.fileName = file.name; S.raw.clear(); S.rec.clear();
+  body.forEach((r, i) => { const id = records[i].id; if (need.has(id)) { S.raw.set(id, r); S.rec.set(id, records[i]); } });
+  S.groups = groups; S.byGid = new Map(groups.map(g => [g.gid, g]));
+  S.byKey = Object.fromEntries(KEYS.map(k => [k, groups.filter(g => g.key === k)]));
+  S.inGroups = new Map();
+  for (const g of groups) for (const id of g.items) { if (!S.inGroups.has(id)) S.inGroups.set(id, []); S.inGroups.get(id).push(g); }
+  const coded = ["mor", "opt", "badm"].some(k => records.some(r => r[k]));
+  S.warn = coded ? "" : "Коди Моріон, Оптима і БАДМ порожні в усій вигрузці. Схоже, це вигрузка іншої країни, а не Lik.u.";
+  const restored = groups.reduce((a, g) => a + g.items.filter(id => dec(g, id) !== "none").length, 0);
+  S.info = restored ? `Відновлено ${restored} ${plural(restored, "рішення", "рішення", "рішень")} з попередньої роботи.` : "";
+  try { const v = JSON.parse(localStorage.getItem(STORE)); if (v?.tab && S.byKey[v.tab]) { S.tab = v.tab; S.cur = v.cur || {}; } } catch { /* немає */ }
+  render();
+}
+
+/* ---------- Відбір груп ---------- */
+const title = g => {
+  const first = S.rec.get(g.items[0]);
+  if (g.key === "name" || g.key === "dwh") return first[g.key];
+  return (g.items.map(id => S.rec.get(id)).find(r => r.dwh) || first).name || `ID ${g.items[0]}`;
+};
+const sharedText = g => (g.key === "name" || g.key === "dwh") ? [title(g)] : g.shared;
+function matches(g, q) {
+  if (!q) return true;
+  return g.items.some(id => {
+    const r = S.rec.get(id);
+    return String(id) === q || [r.name, r.dwh, r.bc, r.mor, r.opt, r.badm].some(v => v && String(v).toLowerCase().includes(q));
+  });
+}
+function visible() {
+  const q = S.q.trim().toLowerCase();
+  return (S.byKey[S.tab] || []).filter(g => (S.filter === "all" || gState(g) === S.filter) && matches(g, q));
+}
+function current() {
+  const list = visible();
+  const g = S.byGid.get(S.cur[S.tab]);
+  return { list, g: g && list.includes(g) ? g : list[0] };
+}
+function goto(g) { if (!g) return; S.tab = g.key; S.cur[g.key] = g.gid; S.cursor = firstOpen(g); save(); render(); window.scrollTo({ top: 0 }); }
+const firstOpen = g => Math.max(0, g.items.findIndex(id => dec(g, id) === "none"));
+function step(d) { const { list, g } = current(); if (!list.length) return; goto(list[(list.indexOf(g) + d + list.length) % list.length]); }
+function nextOpen() {
+  const all = S.byKey[S.tab], { g } = current(), start = all.indexOf(g);
+  for (let i = 1; i <= all.length; i++) { const x = all[(start + i) % all.length]; if (gState(x) !== "done") return goto(x); }
+  toast("У цій вкладці все перевірено");
+}
+
+/* ---------- Підказка ---------- */
+function hintText(g) {
+  const s = g.suggest, ids = g.items;
+  if (s[ids[0]][0] === "vend") {
+    const makers = [...new Set(ids.map(id => S.rec.get(id).mfr).filter(Boolean))];
+    const shown = makers.length > 4 ? `${makers.slice(0, 4).join(", ")} і ще ${makers.length - 4}` : makers.join(", ");
+    return `різні виробники (${esc(shown)}), схоже на <b>Vendor</b>`;
+  }
+  const best = ids.find(id => s[id][0] === "orig");
+  const rb = rank(S.rec.get(best));
+  const others = ids.filter(id => id !== best).map(id => rank(S.rec.get(id)));
+  const why = new Set(others.map(o => RANK_WHY[o.findIndex((v, i) => v !== rb[i])]).filter(Boolean));
+  return `<b>Оригінал</b> ID ${best} (${[...why].join(", ")}), решта <b>Дубль</b>`;
+}
+function acceptHint(g) {
+  let n = 0;
+  for (const id of g.items) if (dec(g, id) === "none") { setDecision(g, id, g.suggest[id][0]); n++; }
+  if (!n) return toast("Усі товари групи вже мають рішення");
+  render();
+}
+
+/* ---------- Відмальовування ---------- */
+function render() {
+  const app = $("#app");
+  if (!S.groups.length && !S.fileName) { app.innerHTML = startView(); bindDrop(); return; }
+  const all = S.groups.length, done = S.groups.filter(gDone).length;
+  const { list, g } = current();
+  if (g) { S.cur[S.tab] = g.gid; S.cursor = Math.min(S.cursor, g.items.length - 1); }
+  const cnt = st => (S.byKey[S.tab] || []).filter(x => st === "all" || gState(x) === st).length;
+  app.innerHTML = `
+  <header><div class="brand">Дублі <span>Lik.u</span></div>
+    <div class="prog">Перевірено ${done} з ${all} груп<div class="bar"><i style="width:${all ? done / all * 100 : 0}%"></i></div><span class="saved" id="saved"></span></div>
+    <button class="btn quiet" data-act="undo" ${undo.length ? "" : "disabled"} title="Ctrl+Z">Скасувати</button>
+    <details class="menu"><summary class="btn quiet">Файл прогресу</summary><div class="pop">
+      <button data-act="save-progress">Зберегти прогрес у файл</button>
+      <button data-act="load-progress">Завантажити прогрес з файлу</button>
+      <button data-act="new-file">Відкрити іншу вигрузку</button></div></details>
+    <button class="btn" data-act="report">Сформувати звіт</button></header>
+  ${S.warn ? `<div class="warnbar" role="alert">${esc(S.warn)}</div>` : ""}
+  ${S.info ? `<div class="infobar" role="status">${esc(S.info)} <button class="btn quiet" data-act="hide-info" style="margin-left:8px;padding:2px 8px">Зрозуміло</button></div>` : ""}
+  <nav class="tabs" role="tablist">${KEYS.map(k => {
+    const gs = S.byKey[k], d = gs.filter(gDone).length, p = gs.filter(x => problems(x).length).length;
+    return `<button class="tab" role="tab" aria-selected="${S.tab === k}" data-tab="${k}"><b>${KN[k]}</b>
+      <small>${gs.length} ${plural(gs.length, "група", "групи", "груп")}, перевірено ${d}${p ? `, <em>проблем ${p}</em>` : ""}</small>
+      <span class="mini"><i style="width:${gs.length ? d / gs.length * 100 : 0}%"></i></span></button>`;
+  }).join("")}</nav>
+  <div class="layout">
+    ${S.list ? `<aside class="list" aria-label="Групи вкладки">${listView(list, g)}</aside>` : ""}
+    <main>
+      <div class="toolbar">
+        <input type="search" id="q" placeholder="Пошук: назва, ID або код" value="${esc(S.q)}">
+        <div class="chips">${[["all", "Усі"], ["todo", "Не перевірені"], ["done", "Перевірені"], ["problem", "З проблемами"]].map(([k, n]) =>
+          `<button data-filter="${k}" aria-pressed="${S.filter === k}">${n}<span>${cnt(k)}</span></button>`).join("")}</div>
+        <span class="sp"></span>
+        <button class="btn quiet" data-act="list">${S.list ? "Сховати список" : "Список груп"}</button>
+        <button class="btn ghost" data-act="next-open">Наступна неперевірена</button>
+      </div>
+      ${g ? groupView(g, list) : `<div class="empty-tab">${(S.byKey[S.tab] || []).length ? "Жодна група не підходить під пошук чи фільтр." : `За полем «${KN[S.tab]}» дублів не знайдено.`}</div>`}
+    </main>
+  </div>`;
+  save();
+}
+
+function listView(list, g) {
+  const max = 400;
+  return list.slice(0, max).map(x => {
+    const n = S.byKey[S.tab].indexOf(x) + 1;
+    const all = x.items.map(id => dec(x, id) === "none" ? "·" : STL[dec(x, id)]);
+    const letters = all.length > 6 ? all.slice(0, 5).join("") + `+${all.length - 5}` : all.join("");
+    return `<button data-goto="${x.gid}" aria-current="${x === g}"><span class="n">${n}</span><span class="t">${esc(title(x))}</span>
+      <span class="l" title="${gState(x) === "problem" ? "Є проблеми" : ""}">${gState(x) === "problem" ? "! " : ""}${letters}</span></button>`;
+  }).join("") + (list.length > max ? `<div class="more">Показано ${max} з ${list.length}. Звузьте пошуком.</div>` : "");
+}
+
+function groupView(g, list) {
+  const n = S.byKey[g.key].indexOf(g) + 1, probs = problems(g);
+  const big = g.items.length > 4;
+  return `
+    <div class="gmeta"><span>${KN[g.key]}, група ${n} з ${S.byKey[g.key].length}${list.length !== S.byKey[g.key].length ? ` (у відборі ${list.indexOf(g) + 1} з ${list.length})` : ""}</span>
+      ${g.key === "name" || g.key === "dwh" ? "" : `<span>Спільне значення: ${sharedText(g).map(v => `<span class="val">${esc(v)}</span>`).join(" ")}</span>`}</div>
+    <h1 class="title">${esc(title(g))}</h1>
+    <div class="hint"><span class="txt">Підказка: ${hintText(g)}</span>
+      <span class="acts"><button class="btn ghost" data-act="accept" title="Клавіша A">Прийняти підказку</button>
+      <button class="btn quiet" data-act="open-all" title="Клавіша O">Відкрити всі картки</button>
+      <button class="btn quiet" data-act="reset-group">Скинути групу</button></span></div>
+    ${probs.length ? `<div class="problems" role="status"><ul>${probs.map(p => `<li>${esc(p)}</li>`).join("")}</ul></div>` : ""}
+    ${big ? wideView(g) : cardsView(g)}
+    <div class="comment"><label for="cm">Коментар до групи (піде у звіт)</label>
+      <textarea id="cm" data-comment="${g.gid}">${esc(D.comments[g.gid] || "")}</textarea></div>
+    <div class="nav"><button class="btn ghost" data-act="prev">Попередня група</button>
+      <span class="keys">Клавіші: 1–5 рішення, 0 скинути, ← → товар, J і K група, N наступна неперевірена, A прийняти підказку, O відкрити картки, Ctrl+Z скасувати</span>
+      <button class="btn" data-act="next">Наступна група</button></div>`;
+}
+
+function rowsToShow(g) {
+  const fields = S.more ? [...VIEW, ...VIEW_MORE] : VIEW;
+  return fields.filter(([c]) => c in S.col && (S.more || c === KEY_COL[g.key] || g.items.some(id => raw(id, c) != null)));
+}
+const NO_DIFF = new Set(["Статус", "Дата создания"]); // відрізняються майже завжди, підсвітка лише заважає
+function fieldClass(g, id, c) {
+  if (c === KEY_COL[g.key]) {
+    const mine = keyValues(S.rec.get(id), g.key);
+    if (mine.some(v => g.shared.includes(v))) return "hit";
+  }
+  if (NO_DIFF.has(c)) return "";
+  const vals = g.items.map(i => raw(i, c)).filter(v => v != null).map(v => String(v).trim().toLowerCase());
+  return vals.length > 1 && new Set(vals).size > 1 && raw(id, c) != null ? "diff" : "";
+}
+
+function cardsView(g) {
+  const rows = rowsToShow(g);
+  return `<div class="cols">${g.items.map((id, idx) => {
+    const r = S.rec.get(id), s = dec(g, id), sug = g.suggest[id][0];
+    const elsewhere = (S.inGroups.get(id) || []).filter(o => o !== g);
+    return `<article class="card s-${s} ${idx === S.cursor ? "active" : ""}" data-cursor="${idx}">
+      <div class="top"><span class="id">ID ${id}</span><span class="stock ${pharmacies(r) ? "" : "out"}">${fmtPh(pharmacies(r))}</span></div>
+      <p class="adm-row">${admLink(id, "Відкрити в адмінці ↗")}</p>
+      <dl>${rows.map(([c, label]) => { const v = raw(id, c);
+        return `<dt class="${c === KEY_COL[g.key] ? "key" : ""}">${label}</dt><dd class="${fieldClass(g, id, c)} ${v == null ? "empty" : ""}">${v == null ? "—" : esc(v)}</dd>`; }).join("")}</dl>
+      ${elsewhere.length ? `<div class="also">Також у групах:${elsewhere.map(o => `<button data-goto="${o.gid}">${KN[o.key]}${o.items.every(i => dec(o, i) !== "none") ? "" : " (не перевірено)"}</button>`).join("")}</div>` : ""}
+      ${s === "err" ? `<div class="fix"><label for="fx${id}">Правильна назва DWH</label><input id="fx${id}" data-fix="${id}" value="${esc(D.fixes[id] ?? r.dwh ?? "")}"></div>` : ""}
+      <div class="seg">${ST.map(([k, n], i) => `<button class="s-${k} ${s === "none" && sug === k ? "sug" : ""}" aria-pressed="${s === k}" data-set="${id}:${k}">${n}<kbd>${i + 1}</kbd></button>`).join("")}
+        ${s !== "none" ? `<button class="reset" data-set="${id}:none">Скинути</button>` : ""}</div>
+    </article>`;
+  }).join("")}</div>
+  <p style="margin-top:10px"><button class="btn quiet" data-act="more">${S.more ? "Менше полів" : "Показати всі поля"}</button></p>`;
+}
+
+function wideView(g) {
+  const cols = [["Название товара", "Назва товару"], ["Название товара DWH", "Назва DWH"], ["Производитель", "Виробник"],
+    ["Кратность", "В упак."], ["Дозировка", "Дозування"], [KEY_COL[g.key], KN[g.key]]].filter((c, i, a) => a.findIndex(x => x[0] === c[0]) === i);
+  return `<div class="wide"><table><thead><tr><th>ID</th><th>Аптек</th>${cols.map(([, n]) => `<th>${n}</th>`).join("")}<th>Рішення (1–5)</th></tr></thead><tbody>
+    ${g.items.map((id, idx) => { const s = dec(g, id), sug = g.suggest[id][0], r = S.rec.get(id);
+      return `<tr class="s-${s} ${idx === S.cursor ? "active" : ""}" data-cursor="${idx}"><td>${admLink(id, `${id} ↗`)}</td>
+        <td>${pharmacies(r) || '<b style="color:#8a5a00">0</b>'}</td>
+        ${cols.map(([c]) => `<td class="${fieldClass(g, id, c)}">${raw(id, c) == null ? "—" : esc(raw(id, c))}</td>`).join("")}
+        <td><div class="mini-seg">${ST.map(([k, n, l]) => `<button class="s-${k} ${s === "none" && sug === k ? "sug" : ""}" aria-pressed="${s === k}" data-set="${id}:${k}" title="${n}" aria-label="${n}">${l}</button>`).join("")}</div>
+        ${s === "err" ? `<input data-fix="${id}" aria-label="Правильна назва DWH" placeholder="Правильна назва DWH" value="${esc(D.fixes[id] ?? r.dwh ?? "")}">` : ""}</td></tr>`; }).join("")}
+  </tbody></table></div>`;
+}
+
+function startView() {
+  return `<div class="start"><h1>Дублі товарів Lik.u</h1>
+    <p>Завантажте вигрузку всіх товарів DWH (файл product-169-ru-….xlsx). Файл обробляється тут, у браузері, і нікуди не надсилається.
+    Рішення зберігаються на цьому комп'ютері автоматично.</p>
+    <label class="drop" id="drop" tabindex="0"><b>Перетягніть файл сюди або натисніть, щоб вибрати</b><span>Excel, до 130 тисяч рядків</span></label>
+    <div class="status" id="status" role="status"></div></div>`;
+}
+function bindDrop() {
+  const d = $("#drop");
+  d.onclick = () => $("#file").click();
+  d.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#file").click(); } };
+  d.ondragover = e => { e.preventDefault(); d.classList.add("over"); };
+  d.ondragleave = () => d.classList.remove("over");
+  d.ondrop = e => { e.preventDefault(); d.classList.remove("over"); if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); };
+}
+
+/* ---------- Звіт ---------- */
+const today = () => new Date().toISOString().slice(0, 10);
+function report() {
+  const open = S.groups.filter(g => !gDone(g)).length, bad = S.groups.filter(g => problems(g).length).length;
+  if ((open || bad) && !confirm(`Не перевірено груп: ${open}. З проблемами: ${bad}.\nСформувати звіт все одно?`)) return;
+  const statusName = s => s === "none" ? "Не перевірено" : STN[s];
+  const link = id => URL_P(id);
+  const origOf = g => g.items.find(id => dec(g, id) === "orig");
+  const main = [["Поле збігу", "Група", "Спільне значення", "Рішення", "Підказка", "Оригінал групи", "Правильна назва DWH", "Коментар до групи", "Посилання", ...S.header]];
+  const merge = [["Поле збігу", "ID дубля", "Назва дубля", "Аптек у дубля", "ID оригіналу", "Назва оригіналу", "Посилання на дубль", "Посилання на оригінал"]];
+  const errs = [["Рішення", "ID", "Назва товару", "Назва DWH зараз", "Правильна назва DWH", "Поле збігу", "Посилання"]];
+  const seenMerge = new Set(), seenErr = new Set(), dups = new Map();
+  for (const k of KEYS) S.byKey[k].forEach((g, gi) => {
+    const o = origOf(g);
+    for (const id of g.items) {
+      const s = dec(g, id), r = S.rec.get(id);
+      main.push([KN[k], gi + 1, sharedText(g).join(", "), statusName(s), STN[g.suggest[id][0]], o ?? "", s === "err" ? (D.fixes[id] || "") : "",
+        D.comments[g.gid] || "", link(id), ...S.header.map(c => cellv(S.raw.get(id)[S.col[c]]))]);
+      if (s === "dup" && o && !seenMerge.has(id + ":" + o)) {
+        seenMerge.add(id + ":" + o);
+        merge.push([KN[k], id, r.dwh || r.name, pharmacies(r), o, S.rec.get(o).dwh || S.rec.get(o).name, link(id), link(o)]);
+      }
+      if (s === "dup") {
+        const d = dups.get(id) || { keys: new Set(), origs: new Set() };
+        d.keys.add(KN[k]); if (o) d.origs.add(o); dups.set(id, d);
+      }
+      if ((s === "err" || s === "vend") && !seenErr.has(id)) {
+        seenErr.add(id);
+        errs.push([STN[s], id, r.name, r.dwh || "", s === "err" ? (D.fixes[id] || "") : "", KN[k], link(id)]);
+      }
+    }
+  });
+  const del = [["ID дубля (видалити)", "Назва товару", "Назва DWH", "Статус", "Аптек", "Залишити ID оригіналу", "Назва оригіналу", "Поле збігу", "Посилання на дубль", "Посилання на оригінал"]];
+  for (const [id, d] of [...dups].sort((a, b) => a[0] - b[0])) {
+    const r = S.rec.get(id), os = [...d.origs], o = os.length === 1 ? S.rec.get(os[0]) : null;
+    del.push([id, r.name, r.dwh || "", r.st || "", pharmacies(r), os.join(", "), o ? (o.dwh || o.name) : "",
+      [...d.keys].join(", "), link(id), os.length === 1 ? link(os[0]) : ""]);
+  }
+  const sum = [["Поле збігу", "Груп", "Перевірено груп", "З проблемами", "Товарів", ...ST.map(([, n]) => n), "Не перевірено"]];
+  for (const k of KEYS) {
+    const gs = S.byKey[k], pairs = gs.flatMap(g => g.items.map(id => dec(g, id)));
+    sum.push([KN[k], gs.length, gs.filter(gDone).length, gs.filter(g => problems(g).length).length, pairs.length,
+      ...ST.map(([s]) => pairs.filter(x => x === s).length), pairs.filter(x => x === "none").length]);
+  }
+  sum.push([], ["Вигрузка", S.fileName], ["Сформовано", new Date().toLocaleString("uk")]);
+  const sheet = (rows, linkCols) => {
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    for (let r = 1; r < rows.length; r++) for (const c of linkCols) {
+      const ref = XLSX.utils.encode_cell({ r, c }); if (ws[ref] && ws[ref].v) ws[ref].l = { Target: String(ws[ref].v) };
+    }
+    ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 0, c: rows[0].length - 1 } }) };
+    return ws;
+  };
+  const book = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(sum), "Зведення");
+  XLSX.utils.book_append_sheet(book, sheet(del, [8, 9]), "Дублі");
+  XLSX.utils.book_append_sheet(book, sheet(main, [8]), "Звіт");
+  XLSX.utils.book_append_sheet(book, sheet(merge, [6, 7]), "Об'єднати і видалити");
+  XLSX.utils.book_append_sheet(book, sheet(errs, [6]), "Помилки оцифрування");
+  XLSX.writeFile(book, `Дублі Lik.u - звіт - ${today()}.xlsx`, { compression: true });
+  toast("Звіт сформовано");
+}
+
+/* ---------- Файл прогресу ---------- */
+function saveProgress() {
+  const blob = new Blob([JSON.stringify({ app: "liku-dupes", v: 1, savedAt: new Date().toISOString(), file: S.fileName, ...D }, null, 1)], { type: "application/json" });
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `Дублі Lik.u - прогрес - ${today()}.json` });
+  a.click(); URL.revokeObjectURL(a.href);
+}
+async function loadProgress(file) {
+  try {
+    const v = JSON.parse(await file.text());
+    if (!/-dupes$/.test(v.app || "") || !v.decisions) throw new Error("це не файл прогресу цього інструмента");
+    if (Object.keys(D.decisions).length && !confirm("Замінити поточні рішення рішеннями з файлу?")) return;
+    D = { decisions: v.decisions, fixes: v.fixes || {}, comments: v.comments || {} };
+    undo.length = 0; save(); render(); toast(`Завантажено ${Object.keys(D.decisions).length} рішень`);
+  } catch (e) { toast(`Не вдалося завантажити прогрес: ${e.message}`); }
+}
+
+/* ---------- Події ---------- */
+let toastTimer;
+function toast(t) {
+  document.querySelector(".toast")?.remove();
+  const el = Object.assign(document.createElement("div"), { className: "toast", role: "status" });
+  el.innerHTML = `<span>${esc(t)}</span>${undo.length && t !== "Скасовано" ? '<button data-act="undo">Скасувати</button>' : ""}`;
+  document.body.append(el);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), 3500);
+}
+function setByCursor(s) {
+  const { g } = current(); if (!g) return;
+  const id = g.items[S.cursor];
+  setDecision(g, id, dec(g, id) === s && s !== "none" ? "none" : s);
+  if (s !== "none") { const next = g.items.findIndex((x, i) => i > S.cursor && dec(g, x) === "none"); if (next >= 0) S.cursor = next; }
+  render();
+}
+function openAll(g) {
+  let blocked = 0;
+  for (const id of g.items) { if (!window.open(URL_P(id), "_blank", "noopener")) blocked++; else opened.add(id); }
+  document.querySelectorAll("[data-adm]").forEach(a => a.classList.toggle("seen", opened.has(+a.dataset.adm)));
+  if (blocked) toast("Браузер заблокував вкладки. Дозвольте спливаючі вікна для цієї сторінки.");
+}
+
+document.addEventListener("click", e => {
+  const adm = e.target.closest("[data-adm]");
+  if (adm) { opened.add(+adm.dataset.adm); adm.classList.add("seen"); return; }
+  const card = e.target.closest("[data-cursor]");
+  if (card && !e.target.closest("a")) S.cursor = +card.dataset.cursor;
+  const t = e.target.closest("button"); if (!t) { if (card) render(); return; }
+  const { g } = current();
+  if (t.dataset.tab) { S.tab = t.dataset.tab; S.cursor = 0; render(); }
+  else if (t.dataset.set) { const [id, s] = t.dataset.set.split(":"); setDecision(g, +id, dec(g, +id) === s ? "none" : s); render(); }
+  else if (t.dataset.goto) goto(S.byGid.get(t.dataset.goto));
+  else if (t.dataset.filter) { S.filter = t.dataset.filter; render(); }
+  else switch (t.dataset.act) {
+    case "prev": step(-1); break;
+    case "next": step(1); break;
+    case "next-open": nextOpen(); break;
+    case "accept": acceptHint(g); break;
+    case "open-all": openAll(g); break;
+    case "reset-group": g.items.forEach(id => setDecision(g, id, "none")); render(); break;
+    case "more": S.more = !S.more; render(); break;
+    case "list": S.list = !S.list; render(); break;
+    case "undo": undoLast(); break;
+    case "report": report(); break;
+    case "save-progress": saveProgress(); break;
+    case "load-progress": $("#progressFile").click(); break;
+    case "new-file": $("#file").click(); break;
+    case "hide-info": S.info = ""; render(); break;
+  }
+});
+let qTimer;
+document.addEventListener("input", e => {
+  if (e.target.id === "q") { clearTimeout(qTimer); qTimer = setTimeout(() => { S.q = e.target.value; render(); const q = $("#q"); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }, 200); }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.dataset.fix) { change("fixes", t.dataset.fix, t.value.trim()); render(); }
+  if (t.dataset.comment) { change("comments", t.dataset.comment, t.value.trim()); }
+  if (t.id === "file" && t.files[0]) { if (!S.groups.length) readFile(t.files[0]); else { S.groups = []; S.fileName = ""; render(); readFile(t.files[0]); } t.value = ""; }
+  if (t.id === "progressFile" && t.files[0]) { loadProgress(t.files[0]); t.value = ""; }
+});
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.code === "KeyZ" && !/INPUT|TEXTAREA/.test(e.target.tagName)) { e.preventDefault(); return undoLast(); }
+  if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || e.ctrlKey || e.metaKey || e.altKey || !S.groups.length) return;
+  const { g } = current();
+  const digit = /^(Digit|Numpad)([0-5])$/.exec(e.code);
+  if (digit && g) { e.preventDefault(); return setByCursor(digit[2] === "0" ? "none" : ST[+digit[2] - 1][0]); }
+  switch (e.code) {
+    case "Backspace": if (g) { e.preventDefault(); setByCursor("none"); } break;
+    case "ArrowRight": if (g) { e.preventDefault(); S.cursor = (S.cursor + 1) % g.items.length; render(); } break;
+    case "ArrowLeft": if (g) { e.preventDefault(); S.cursor = (S.cursor - 1 + g.items.length) % g.items.length; render(); } break;
+    case "KeyJ": step(1); break;
+    case "KeyK": step(-1); break;
+    case "KeyN": nextOpen(); break;
+    case "KeyA": if (g) acceptHint(g); break;
+    case "KeyO": if (g) openAll(g); break;
+    case "KeyL": S.list = !S.list; render(); break;
+    case "Slash": e.preventDefault(); $("#q")?.focus(); break;
+  }
+});
+window.addEventListener("beforeunload", () => localStorage.setItem(STORE, JSON.stringify({ ...D, tab: S.tab, cur: S.cur })));
+
+loadStore();
+render();
+// Для перевірки: index.html?file=<шлях до вигрузки на тому ж сервері> відкриває файл одразу.
+const src = new URLSearchParams(location.search).get("file");
+if (src) fetch(src).then(r => r.blob()).then(b => readFile(new File([b], src.split("/").pop())));
+</script>
+</body>
+</html>
