@@ -318,10 +318,10 @@ const dkey = (g, id) => `${g.key}|${id}`;
 const dec = (g, id) => D.decisions[dkey(g, id)] || "none";
 function change(kind, k, value) {
   const box = D[kind], prev = box[k];
-  if ((prev ?? "") === (value ?? "")) return;
+  if (prev === value || (prev == null && value == null)) return;
   undo.push({ kind, k, prev });
   if (undo.length > 500) undo.shift();
-  if (value == null || value === "") delete box[k]; else box[k] = value;
+  if (value == null) delete box[k]; else box[k] = value;
   save();
 }
 function setDecision(g, id, s) { change("decisions", dkey(g, id), s === "none" ? null : s); }
@@ -331,6 +331,15 @@ function undoLast() {
   save(); render(); toast("Скасовано");
 }
 
+/* «Помилка оцифрування»: у вкладках назв виправляється назва DWH, у вкладках кодів — код цієї вкладки.
+   Для кодів порожнє значення означає «прибрати код у товару». */
+const isCodeKey = k => !NAME_KEYS.has(k);
+const fixKey = (k, id) => isCodeKey(k) ? `${k}|${id}` : String(id);
+const fixCur = (k, id) => { const r = S.rec.get(id); return String((isCodeKey(k) ? r[k] : r.dwh) ?? ""); };
+const fixVal = (k, id) => D.fixes[fixKey(k, id)] ?? fixCur(k, id);
+const fixLabel = k => isCodeKey(k) ? `Правильні ${KN[k]}: залиште тільки правильні, через кому. Порожньо — прибрати всі` : "Правильна назва DWH";
+const fixField = (k, id) => isCodeKey(k) ? KN[k] : "Назва DWH";
+const fixText = (k, id) => { const v = fixVal(k, id); return isCodeKey(k) && v === "" ? "прибрати всі коди" : v; };
 const gDone = g => g.items.every(id => dec(g, id) !== "none");
 function problems(g) {
   const st = g.items.map(id => dec(g, id)), out = [];
@@ -340,8 +349,11 @@ function problems(g) {
   if (nO && !nD) out.push("«Оригінал» ставиться лише разом з «Дубль». Якщо дублів немає, поставте «Не дубль».");
   for (const id of g.items) {
     const s = dec(g, id);
-    const fixed = (D.fixes[id] || "").trim();
-    if (s === "err" && (!fixed || fixed === (S.rec.get(id).dwh || ""))) out.push(`ID ${id}: впишіть правильну назву DWH, зараз вона не змінена.`);
+    if (s === "err") {
+      const k = g.key, v = D.fixes[fixKey(k, id)];
+      if (!isCodeKey(k) && (!(v || "").trim() || v === fixCur(k, id))) out.push(`ID ${id}: впишіть правильну назву DWH, зараз вона не змінена.`);
+      if (isCodeKey(k) && (v == null || v === fixCur(k, id))) out.push(`ID ${id}: виправте «${KN[k]}» або очистіть поле, якщо коди треба прибрати.`);
+    }
     if (s === "orig" || s === "dup") for (const k of KEYS) {
       if (k === g.key) continue;
       const o = D.decisions[`${k}|${id}`];
@@ -543,7 +555,7 @@ function cardsView(g) {
       <dl>${rows.map(([c, label]) => { const v = raw(id, c);
         return `<dt class="${c === KEY_COL[g.key] ? "key" : ""}">${label}</dt><dd class="${fieldClass(g, id, c)} ${v == null ? "empty" : ""}">${v == null ? "—" : esc(v)}</dd>`; }).join("")}</dl>
       ${elsewhere.length ? `<div class="also">Також у групах:${elsewhere.map(o => `<button data-goto="${o.gid}">${KN[o.key]}${o.items.every(i => dec(o, i) !== "none") ? "" : " (не перевірено)"}</button>`).join("")}</div>` : ""}
-      ${s === "err" ? `<div class="fix"><label for="fx${id}">Правильна назва DWH</label><input id="fx${id}" data-fix="${id}" value="${esc(D.fixes[id] ?? r.dwh ?? "")}"></div>` : ""}
+      ${s === "err" ? `<div class="fix"><label for="fx${id}">${fixLabel(g.key)}</label><input id="fx${id}" data-fix="${fixKey(g.key, id)}" value="${esc(fixVal(g.key, id))}"></div>` : ""}
       <div class="seg">${ST.map(([k, n], i) => `<button class="s-${k} ${s === "none" && sug === k ? "sug" : ""}" aria-pressed="${s === k}" data-set="${id}:${k}">${n}<kbd>${i + 1}</kbd></button>`).join("")}
         ${s !== "none" ? `<button class="reset" data-set="${id}:none">Скинути</button>` : ""}</div>
     </article>`;
@@ -560,7 +572,7 @@ function wideView(g) {
         <td>${pharmacies(r) || '<b style="color:#8a5a00">0</b>'}</td>
         ${cols.map(([c]) => `<td class="${fieldClass(g, id, c)}">${raw(id, c) == null ? "—" : esc(raw(id, c))}</td>`).join("")}
         <td><div class="mini-seg">${ST.map(([k, n, l]) => `<button class="s-${k} ${s === "none" && sug === k ? "sug" : ""}" aria-pressed="${s === k}" data-set="${id}:${k}" title="${n}" aria-label="${n}">${l}</button>`).join("")}</div>
-        ${s === "err" ? `<input data-fix="${id}" aria-label="Правильна назва DWH" placeholder="Правильна назва DWH" value="${esc(D.fixes[id] ?? r.dwh ?? "")}">` : ""}</td></tr>`; }).join("")}
+        ${s === "err" ? `<input data-fix="${fixKey(g.key, id)}" aria-label="${fixLabel(g.key)}" placeholder="${fixLabel(g.key)}" value="${esc(fixVal(g.key, id))}">` : ""}</td></tr>`; }).join("")}
   </tbody></table></div>`;
 }
 
@@ -588,15 +600,15 @@ function report() {
   const statusName = s => s === "none" ? "Не перевірено" : STN[s];
   const link = id => URL_P(id);
   const origOf = g => g.items.find(id => dec(g, id) === "orig");
-  const main = [["Поле збігу", "Група", "Спільне значення", "Рішення", "Підказка", "Оригінал групи", "Правильна назва DWH", "Коментар до групи", "Посилання", ...S.header]];
+  const main = [["Поле збігу", "Група", "Спільне значення", "Рішення", "Підказка", "Оригінал групи", "Виправлене значення", "Коментар до групи", "Посилання", ...S.header]];
   const merge = [["Поле збігу", "ID дубля", "Назва дубля", "Аптек у дубля", "ID оригіналу", "Назва оригіналу", "Посилання на дубль", "Посилання на оригінал"]];
-  const errs = [["Рішення", "ID", "Назва товару", "Назва DWH зараз", "Правильна назва DWH", "Поле збігу", "Посилання"]];
+  const errs = [["Рішення", "ID", "Назва товару", "Що виправити", "Значення зараз", "Правильне значення", "Поле збігу", "Посилання"]];
   const seenMerge = new Set(), seenErr = new Set(), dups = new Map();
   for (const k of KEYS) S.byKey[k].forEach((g, gi) => {
     const o = origOf(g);
     for (const id of g.items) {
       const s = dec(g, id), r = S.rec.get(id);
-      main.push([KN[k], gi + 1, sharedText(g).join(", "), statusName(s), STN[g.suggest[id][0]], o ?? "", s === "err" ? (D.fixes[id] || "") : "",
+      main.push([KN[k], gi + 1, sharedText(g).join(", "), statusName(s), STN[g.suggest[id][0]], o ?? "", s === "err" ? fixText(k, id) : "",
         D.comments[g.gid] || "", link(id), ...S.header.map(c => cellv(S.raw.get(id)[S.col[c]]))]);
       if (s === "dup" && o && !seenMerge.has(id + ":" + o)) {
         seenMerge.add(id + ":" + o);
@@ -606,9 +618,11 @@ function report() {
         const d = dups.get(id) || { keys: new Set(), origs: new Set() };
         d.keys.add(KN[k]); if (o) d.origs.add(o); dups.set(id, d);
       }
-      if ((s === "err" || s === "vend") && !seenErr.has(id)) {
-        seenErr.add(id);
-        errs.push([STN[s], id, r.name, r.dwh || "", s === "err" ? (D.fixes[id] || "") : "", KN[k], link(id)]);
+      const ek = s === "err" ? fixKey(k, id) : "vend|" + id;
+      if ((s === "err" || s === "vend") && !seenErr.has(ek)) {
+        seenErr.add(ek);
+        errs.push(s === "err" ? [STN[s], id, r.name, fixField(k, id), fixCur(k, id), fixText(k, id), KN[k], link(id)]
+          : [STN[s], id, r.name, "", r.dwh || "", "", KN[k], link(id)]);
       }
     }
   });
@@ -638,7 +652,7 @@ function report() {
   XLSX.utils.book_append_sheet(book, sheet(del, [8, 9]), "Дублі");
   XLSX.utils.book_append_sheet(book, sheet(main, [8]), "Звіт");
   XLSX.utils.book_append_sheet(book, sheet(merge, [6, 7]), "Об'єднати і видалити");
-  XLSX.utils.book_append_sheet(book, sheet(errs, [6]), "Помилки оцифрування");
+  XLSX.utils.book_append_sheet(book, sheet(errs, [7]), "Помилки оцифрування");
   XLSX.writeFile(book, `Дублі Lik.u - звіт - ${today()}.xlsx`, { compression: true });
   toast("Звіт сформовано");
 }
@@ -716,8 +730,8 @@ document.addEventListener("input", e => {
 });
 document.addEventListener("change", e => {
   const t = e.target;
-  if (t.dataset.fix) { change("fixes", t.dataset.fix, t.value.trim()); render(); }
-  if (t.dataset.comment) { change("comments", t.dataset.comment, t.value.trim()); }
+  if (t.dataset.fix) { const v = t.value.trim(); change("fixes", t.dataset.fix, v || (t.dataset.fix.includes("|") ? "" : null)); render(); }
+  if (t.dataset.comment) { change("comments", t.dataset.comment, t.value.trim() || null); }
   if (t.id === "file" && t.files[0]) { if (!S.groups.length) readFile(t.files[0]); else { S.groups = []; S.fileName = ""; render(); readFile(t.files[0]); } t.value = ""; }
   if (t.id === "progressFile" && t.files[0]) { loadProgress(t.files[0]); t.value = ""; }
 });
