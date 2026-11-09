@@ -108,6 +108,7 @@ dd.diff{border-left-color:#e0a63a;background:#fff8ea}
 dd.hit{background:#dff3ea;border-left-color:#0f7b5f;font-weight:600}
 dd.empty{color:#a9b8b4}
 .also{font-size:12px;color:#4d625d}
+.gone{font-size:13px;color:#4d625d;margin:0 0 12px}.gone button{border:0;background:#eef3f1;border-radius:4px;padding:2px 8px;margin-left:4px;color:#0b5c47;text-decoration:line-through}
 .also button{border:0;background:#eef3f1;border-radius:4px;padding:1px 6px;font-size:12px;margin-left:4px;color:#0b5c47}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:auto}
 .seg button{border:1px solid #d5dfdb;background:#fff;border-radius:8px;padding:7px 8px;font-size:13px;text-align:left;display:flex;gap:6px;align-items:center}
@@ -335,11 +336,21 @@ function undoLast() {
   save(); render(); toast("Скасовано");
 }
 
-const gDone = g => g.items.every(id => dec(g, id) !== "none");
+/* Товар, уже позначений «Дубль» в іншій вкладці, в інших групах не перевіряється: він уже прив'язаний
+   до оригіналу. Якщо в цій групі для нього є власне рішення, він показується як звичайно. */
+const goneTab = (g, id) => dec(g, id) !== "none" ? null : KEYS.find(k => k !== g.key && D.decisions[`${k}|${id}`] === "dup") || null;
+const live = g => g.items.filter(id => !goneTab(g, id));
+const isLive = (g, id) => !goneTab(g, id);
+const gDone = g => { const l = live(g); return l.length < 2 || l.every(id => dec(g, id) !== "none"); };
+function liveSuggest(g) {
+  const ids = live(g), s = g.suggest;
+  if (ids.length < 2 || s[ids[0]][0] === "vend") return { ids, best: null };
+  return { ids, best: ids.reduce((a, b) => compareRank(rank(S.rec.get(b)), rank(S.rec.get(a))) < 0 ? b : a) };
+}
 function problems(g) {
   const st = g.items.map(id => dec(g, id)), out = [];
-  const nO = st.filter(s => s === "orig").length, nD = st.filter(s => s === "dup").length;
-  if (nD && nO === 0) out.push("Є «Дубль», але немає «Оригінал».");
+  const nO = st.filter(s => s === "orig").length, nD = st.filter(s => s === "dup").length + g.items.length - live(g).length;
+  if (st.includes("dup") && nO === 0) out.push("Є «Дубль», але немає «Оригінал».");
   if (nO > 1) out.push("У групі має бути лише один «Оригінал».");
   if (nO && !nD) out.push("«Оригінал» ставиться лише разом з «Дубль». Якщо дублів немає, поставте «Не дубль».");
   for (const id of g.items) {
@@ -419,7 +430,8 @@ function current() {
   return { list, g: g && list.includes(g) ? g : list[0] };
 }
 function goto(g) { if (!g) return; S.tab = g.key; S.cur[g.key] = g.gid; S.cursor = firstOpen(g); save(); render(); window.scrollTo({ top: 0 }); }
-const firstOpen = g => Math.max(0, g.items.findIndex(id => dec(g, id) === "none"));
+const firstOpen = g => { const i = g.items.findIndex(id => isLive(g, id) && dec(g, id) === "none"); return i >= 0 ? i : Math.max(0, g.items.findIndex(id => isLive(g, id))); };
+function moveCursor(g, d) { const n = g.items.length; for (let k = 1; k <= n; k++) { const i = (S.cursor + d * k + n * n) % n; if (isLive(g, g.items[i])) { S.cursor = i; return; } } }
 function step(d) { const { list, g } = current(); if (!list.length) return; goto(list[(list.indexOf(g) + d + list.length) % list.length]); }
 function nextOpen() {
   const all = S.byKey[S.tab], { g } = current(), start = all.indexOf(g);
@@ -429,13 +441,13 @@ function nextOpen() {
 
 /* ---------- Підказка ---------- */
 function hintText(g) {
-  const s = g.suggest, ids = g.items;
+  const s = g.suggest, { ids, best } = liveSuggest(g);
+  if (ids.length < 2) return "усі інші товари вже позначені «Дубль» в інших вкладках, тут перевіряти нічого";
   if (s[ids[0]][0] === "vend") {
     const makers = [...new Set(ids.map(id => S.rec.get(id).mfr).filter(Boolean))];
     const shown = makers.length > 4 ? `${makers.slice(0, 4).join(", ")} і ще ${makers.length - 4}` : makers.join(", ");
     return `різні виробники (${esc(shown)}), схоже на <b>Vendor</b>`;
   }
-  const best = ids.find(id => s[id][0] === "orig");
   const rb = rank(S.rec.get(best));
   const others = ids.filter(id => id !== best).map(id => rank(S.rec.get(id)));
   const why = new Set(others.map(o => RANK_WHY[o.findIndex((v, i) => v !== rb[i])]).filter(Boolean));
@@ -443,7 +455,9 @@ function hintText(g) {
 }
 function acceptHint(g) {
   let n = 0;
-  for (const id of g.items) if (dec(g, id) === "none") { setDecision(g, id, g.suggest[id][0]); n++; }
+  const { ids, best } = liveSuggest(g);
+  if (ids.length < 2) return toast("Тут перевіряти нічого");
+  for (const id of ids) if (dec(g, id) === "none") { setDecision(g, id, best == null ? g.suggest[id][0] : id === best ? "orig" : "dup"); n++; }
   if (!n) return toast("Усі товари групи вже мають рішення");
   render();
 }
@@ -454,7 +468,7 @@ function render() {
   if (!S.groups.length && !S.fileName) { app.innerHTML = startView(); bindDrop(); return; }
   const all = S.groups.length, done = S.groups.filter(gDone).length;
   const { list, g } = current();
-  if (g) { S.cur[S.tab] = g.gid; S.cursor = Math.min(S.cursor, g.items.length - 1); }
+  if (g) { S.cur[S.tab] = g.gid; S.cursor = Math.min(S.cursor, g.items.length - 1); if (!isLive(g, g.items[S.cursor])) S.cursor = firstOpen(g); }
   const cnt = st => (S.byKey[S.tab] || []).filter(x => st === "all" || gState(x) === st).length;
   app.innerHTML = `
   <header><div class="brand">Дублі <span>Lik.u</span></div>
@@ -494,7 +508,7 @@ function listView(list, g) {
   const max = 400;
   return list.slice(0, max).map(x => {
     const n = S.byKey[S.tab].indexOf(x) + 1;
-    const all = x.items.map(id => dec(x, id) === "none" ? "·" : STL[dec(x, id)]);
+    const all = x.items.map(id => goneTab(x, id) ? "–" : dec(x, id) === "none" ? "·" : STL[dec(x, id)]);
     const letters = all.length > 6 ? all.slice(0, 5).join("") + `+${all.length - 5}` : all.join("");
     return `<button data-goto="${x.gid}" aria-current="${x === g}"><span class="n">${n}</span><span class="t">${esc(title(x))}</span>
       <span class="l" title="${gState(x) === "problem" ? "Є проблеми" : ""}">${gState(x) === "problem" ? "! " : ""}${letters}</span></button>`;
@@ -503,7 +517,7 @@ function listView(list, g) {
 
 function groupView(g, list) {
   const n = S.byKey[g.key].indexOf(g) + 1, probs = problems(g);
-  const big = g.items.length > 4;
+  const big = live(g).length > 4;
   return `
     <div class="gmeta"><span>${KN[g.key]}, група ${n} з ${S.byKey[g.key].length}${list.length !== S.byKey[g.key].length ? ` (у відборі ${list.indexOf(g) + 1} з ${list.length})` : ""}</span>
       ${g.key === "name" || g.key === "dwh" ? "" : `<span>Спільне значення: ${sharedText(g).map(v => `<span class="val">${esc(v)}</span>`).join(" ")}</span>`}</div>
@@ -513,6 +527,7 @@ function groupView(g, list) {
       <button class="btn quiet" data-act="open-all" title="Клавіша O">Відкрити всі картки</button>
       <button class="btn quiet" data-act="reset-group">Скинути групу</button></span></div>
     ${probs.length ? `<div class="problems" role="status"><ul>${probs.map(p => `<li>${esc(p)}</li>`).join("")}</ul></div>` : ""}
+    ${goneView(g)}
     ${big ? wideView(g) : cardsView(g)}
     <div class="comment"><label for="cm">Коментар до групи (піде у звіт)</label>
       <textarea id="cm" data-comment="${g.gid}">${esc(D.comments[g.gid] || "")}</textarea></div>
@@ -536,9 +551,16 @@ function fieldClass(g, id, c) {
   return vals.length > 1 && new Set(vals).size > 1 && raw(id, c) != null ? "diff" : "";
 }
 
+function goneView(g) {
+  const gone = g.items.filter(id => goneTab(g, id));
+  if (!gone.length) return "";
+  return `<div class="gone">Уже позначені «Дубль» в інших вкладках, тут не перевіряються:${gone.map(id => {
+    const k = goneTab(g, id), o = (S.inGroups.get(id) || []).find(x => x.key === k);
+    return ` <button ${o ? `data-goto="${o.gid}"` : ""} title="Перейти до групи, де позначено">ID ${id} (${KN[k]})</button>`; }).join("")}</div>`;
+}
 function cardsView(g) {
   const rows = rowsToShow(g);
-  return `<div class="cols">${g.items.map((id, idx) => {
+  return `<div class="cols">${g.items.map((id, idx) => { if (!isLive(g, id)) return "";
     const r = S.rec.get(id), s = dec(g, id), sug = g.suggest[id][0];
     const elsewhere = (S.inGroups.get(id) || []).filter(o => o !== g);
     return `<article class="card s-${s} ${idx === S.cursor ? "active" : ""}" data-cursor="${idx}">
@@ -559,7 +581,7 @@ function wideView(g) {
   const cols = [["Название товара", "Назва товару"], ["Название товара DWH", "Назва DWH"], ["Производитель", "Виробник"],
     ["Кратность", "В упак."], ["Дозировка", "Дозування"], [KEY_COL[g.key], KN[g.key]]].filter((c, i, a) => a.findIndex(x => x[0] === c[0]) === i);
   return `<div class="wide"><table><thead><tr><th>ID</th><th>Аптек</th>${cols.map(([, n]) => `<th>${n}</th>`).join("")}<th>Рішення (1–5)</th></tr></thead><tbody>
-    ${g.items.map((id, idx) => { const s = dec(g, id), sug = g.suggest[id][0], r = S.rec.get(id);
+    ${g.items.map((id, idx) => { if (!isLive(g, id)) return ""; const s = dec(g, id), sug = g.suggest[id][0], r = S.rec.get(id);
       return `<tr class="s-${s} ${idx === S.cursor ? "active" : ""}" data-cursor="${idx}"><td>${admLink(id, `${id} ↗`)}</td>
         <td>${pharmacies(r) || '<b style="color:#8a5a00">0</b>'}</td>
         ${cols.map(([c]) => `<td class="${fieldClass(g, id, c)}">${raw(id, c) == null ? "—" : esc(raw(id, c))}</td>`).join("")}
@@ -589,7 +611,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 function report() {
   const open = S.groups.filter(g => !gDone(g)).length, bad = S.groups.filter(g => problems(g).length).length;
   if ((open || bad) && !confirm(`Не перевірено груп: ${open}. З проблемами: ${bad}.\nСформувати звіт все одно?`)) return;
-  const statusName = s => s === "none" ? "Не перевірено" : STN[s];
+  const statusName = (s, g, id) => s !== "none" ? STN[s] : goneTab(g, id) ? `Дубль (позначено у вкладці «${KN[goneTab(g, id)]}»)` : "Не перевірено";
   const link = id => URL_P(id);
   const origOf = g => g.items.find(id => dec(g, id) === "orig");
   const main = [["Поле збігу", "Група", "Спільне значення", "Рішення", "Підказка", "Оригінал групи", "Правильна назва DWH", "Коментар до групи", "Посилання", ...S.header]];
@@ -601,7 +623,7 @@ function report() {
     const o = origOf(g);
     for (const id of g.items) {
       const s = dec(g, id), r = S.rec.get(id);
-      main.push([KN[k], gi + 1, sharedText(g).join(", "), statusName(s), STN[g.suggest[id][0]], o ?? "", s === "err" ? (D.fixes[id] || "") : "",
+      main.push([KN[k], gi + 1, sharedText(g).join(", "), statusName(s, g, id), STN[g.suggest[id][0]], o ?? "", s === "err" ? (D.fixes[id] || "") : "",
         D.comments[g.gid] || "", link(id), ...S.header.map(c => cellv(S.raw.get(id)[S.col[c]]))]);
       if (s === "dup" && o && !seenMerge.has(id + ":" + o)) {
         seenMerge.add(id + ":" + o);
@@ -629,7 +651,7 @@ function report() {
   }
   const sum = [["Поле збігу", "Груп", "Перевірено груп", "З проблемами", "Товарів", ...ST.map(([, n]) => n), "Не перевірено"]];
   for (const k of KEYS) {
-    const gs = S.byKey[k], pairs = gs.flatMap(g => g.items.map(id => dec(g, id)));
+    const gs = S.byKey[k], pairs = gs.flatMap(g => g.items.map(id => goneTab(g, id) ? "dup" : dec(g, id)));
     sum.push([KN[k], gs.length, gs.filter(gDone).length, gs.filter(g => problems(g).length).length, pairs.length,
       ...ST.map(([s]) => pairs.filter(x => x === s).length), pairs.filter(x => x === "none").length]);
   }
@@ -681,8 +703,9 @@ function toast(t) {
 function setByCursor(s) {
   const { g } = current(); if (!g) return;
   const id = g.items[S.cursor];
+  if (!isLive(g, id)) return;
   setDecision(g, id, dec(g, id) === s && s !== "none" ? "none" : s);
-  if (s !== "none") { const next = g.items.findIndex((x, i) => i > S.cursor && dec(g, x) === "none"); if (next >= 0) S.cursor = next; }
+  if (s !== "none") { const next = g.items.findIndex((x, i) => i > S.cursor && isLive(g, x) && dec(g, x) === "none"); if (next >= 0) S.cursor = next; }
   render();
 }
 function openAll(g) {
@@ -739,8 +762,8 @@ document.addEventListener("keydown", e => {
   if (digit && g) { e.preventDefault(); return setByCursor(digit[2] === "0" ? "none" : stFor(g.key)[+digit[2] - 1][0]); }
   switch (e.code) {
     case "Backspace": if (g) { e.preventDefault(); setByCursor("none"); } break;
-    case "ArrowRight": if (g) { e.preventDefault(); S.cursor = (S.cursor + 1) % g.items.length; render(); } break;
-    case "ArrowLeft": if (g) { e.preventDefault(); S.cursor = (S.cursor - 1 + g.items.length) % g.items.length; render(); } break;
+    case "ArrowRight": if (g) { e.preventDefault(); moveCursor(g, 1); render(); } break;
+    case "ArrowLeft": if (g) { e.preventDefault(); moveCursor(g, -1); render(); } break;
     case "KeyJ": step(1); break;
     case "KeyK": step(-1); break;
     case "KeyN": nextOpen(); break;
